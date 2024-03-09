@@ -10,7 +10,7 @@ export const authentication = async (req, res, next) => {
         });
         
         // Verify token.
-        jwt.verify(token, process.env.SECRET_KEY, function(err, decoded) {
+        jwt.verify(token, process.env.JWT_SECRET, function(err, decoded) {
             if (err) return res.status(401).send({
                 status: false,
                 message: "login first"
@@ -21,6 +21,7 @@ export const authentication = async (req, res, next) => {
             next();
         });
     } catch (error) {
+        console.log(error)
         res.status(500).send({
             status: false,
             message: "Server error"
@@ -28,9 +29,26 @@ export const authentication = async (req, res, next) => {
     }
 }
 
-export const authorisation = async (req, res, next) => {
+export const authorisationDealer = async (req, res, next) => {
     try {
-        if(decoded.type != "Admin") return res.status(403).send({
+        if(req.decoded.type != "Dealer") return res.status(403).send({
+            status: false,
+            message: "Not Allowed"
+        });
+
+        next();
+    } catch (error) {
+        console.log(error);
+        res.status(500).send({
+            status: false,
+            message: "Server error"
+        });
+    }
+};
+
+export const authorisationUser = async (req, res, next) => {
+    try {
+        if(req.decoded.type != "User") return res.status(403).send({
             status: false,
             message: "Not Allowed"
         });

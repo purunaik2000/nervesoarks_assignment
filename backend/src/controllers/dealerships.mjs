@@ -1,38 +1,72 @@
+import { ObjectId } from "mongodb";
 import client from "../connections/mongodb.mjs";
 
-export const addCar = async (req, res) => {
+export const getAllDealers = async (req, res) => {
     try {
-        const data = req.body;
+        const dealerCollection = client.db(process.env.DB_NAME).collection("dealership");
+        const dealers = await dealerCollection.find({}).toArray();
 
-        if (!data) return res.status(400).send({
-            status: false,
-            message: "No data provided"
-        });
-
-        let { name, type, model } = data;
-
-        if (!name || !type || !model) return res.status(400).send({
-            status: false,
-            message: "Please provide all required fields."
-        });
-
-        const carsCollection = client.db("nervesparks").collection("cars");
-
-        const carInfo = {
-            name: name,
-            type: type,
-            model: model,
-            car_info: {},
-            createdAt: Date.now(),
-            updatedAt: Date.now()
-        }
-
-        const car = await carsCollection.insertOne(carInfo);
-
-        res.status(201).send({
+        res.status(200).send({
             status: true,
-            message: "Successfully added a new car.",
+            data: dealers
+        });
+    } catch (error) {
+        res.status(500).send({
+            status: false,
+            message: "server-error"
+        });
+    }
+}
+
+export const getDealerWithCarId = async (req, res) => {
+    try {
+        const carId = req.params.carId;
+
+        const carsCollection = client.db(process.env.DB_NAME).collection("cars");
+
+        const car = await carsCollection.aggregate([
+            {
+                $match: {
+                    _id: carId
+                }
+            },
+            {
+                $lookup: {
+                    from: "dealership",
+                    localField: "car_info.dealerId",
+                    foreignField: "_id",
+                    as: "info"
+                }
+            }
+        ]).toArray();
+
+        res.status(200).send({
+            status: true,
             data: car
+        });
+    } catch (error) {
+        res.status(500).send({
+            status: false,
+            message: "server-error"
+        });
+    }
+}
+
+export const getAllDeals = async (req, res) => {
+    try {
+        const dealerId = new ObjectId(req.decoded._id);
+
+        const dealCollection = client.db(process.env.DB_NAME).collection("deal");
+
+        const deals = await dealCollection.find({
+            deal_info: {
+                dealerId: dealerId
+            }
+        }).toArray();
+
+        res.status(200).send({
+            status: true,
+            data: deals
         });
     } catch (error) {
         res.status(500).send({
@@ -58,7 +92,7 @@ export const confirmDeal = async (req, res) => {
             message: "Please provide all required fields."
         });
 
-        const soldCollection = client.db("nervesparks").collection("sold_vehicles");
+        const soldCollection = client.db(process.env.DB_NAME).collection("sold_vehicles");
 
         const soldInfo = {
             car_id: carId,
@@ -69,8 +103,8 @@ export const confirmDeal = async (req, res) => {
 
         const soldVehicle = await soldCollection.insertOne(soldInfo);
 
-        const userCollection = client.db("nervesparks").collection("user");
-        const dealCollection = client.db("nervesparks").collection("deal");
+        const userCollection = client.db(process.env.DB_NAME).collection("user");
+        const dealCollection = client.db(process.env.DB_NAME).collection("deal");
 
         await userCollection.updateOne(
             {

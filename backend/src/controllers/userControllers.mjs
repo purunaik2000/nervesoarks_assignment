@@ -1,6 +1,7 @@
 import client from "../connections/mongodb.mjs";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { genDealer, genUser } from "../helper/genData.mjs";
 
 export const register = async (req, res) => {
     try {
@@ -19,8 +20,8 @@ export const register = async (req, res) => {
         });
 
         const usersCollection = isDealer ?
-            client.db("nervesparks").collection("dealership") :
-            client.db("nervesparks").collection("user");
+            client.db(process.env.DB_NAME).collection("dealership") :
+            client.db(process.env.DB_NAME).collection("user");
 
         // Checking for the uniqueness of the email address
         const isUserExist = await usersCollection.findOne({ email });
@@ -75,8 +76,8 @@ export const login = async (req, res) => {
         password = password.trim();
 
         const usersCollection = isDealer ?
-            client.db("nervesparks").collection("dealership") :
-            client.db("nervesparks").collection("user");
+            client.db(process.env.DB_NAME).collection("dealership") :
+            client.db(process.env.DB_NAME).collection("user");
 
         const user = await usersCollection.findOne({ email: email });
 
@@ -94,7 +95,17 @@ export const login = async (req, res) => {
         })
 
         //create token
-        const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET, { expiresIn: "2h" });
+        const token = jwt.sign(
+            {
+                _id: user._id,
+                type: isDealer ? "Dealer" : "User",
+                email: user.email
+            },
+            process.env.JWT_SECRET,
+            {
+                expiresIn: "2h"
+            }
+        ); 
 
         return res.status(200).send({
             status: true,
@@ -102,7 +113,8 @@ export const login = async (req, res) => {
             user: {
                 _id: user._id,
                 name: user.name,
-                email: user.email
+                email: user.email,
+                type: isDealer ? "Dealer" : "User"
             }
         });
     } catch (error) {
@@ -113,6 +125,23 @@ export const login = async (req, res) => {
         });
     }
 };
+
+export const getAllUsers = async (req, res) => {
+    try {
+        const usersCollection = client.db(process.env.DB_NAME).collection("user");
+        const users = await usersCollection.find({}).toArray();
+
+        return res.status(200).send({
+            staus: true,
+            data: users
+        })
+    } catch (error) {
+        res.status(500).send({
+            status: false,
+            message: "server-error"
+        })
+    }
+}
 
 export const addDeal = async (req, res) => {
     try {
@@ -130,7 +159,7 @@ export const addDeal = async (req, res) => {
             message: "Please provide all required fields."
         });
 
-        const dealCollection = client.db("nervesparks").collection("deal");
+        const dealCollection = client.db(process.env.DB_NAME).collection("deal");
 
         const dealInfo = {
             car_id: carId,
@@ -149,7 +178,7 @@ export const addDeal = async (req, res) => {
             {
                 _id: dealerId
             },
-            { 
+            {
                 $push: {
                     deals: deal._id
                 },

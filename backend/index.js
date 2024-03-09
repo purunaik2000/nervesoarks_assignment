@@ -1,12 +1,15 @@
 import env from 'dotenv';
+env.config();
 import express from "express";
 import multer from "multer";
 import route from "./src/route.mjs";
 import client from "./src/connections/mongodb.mjs";
+import cors from "cors";
 
-env.config();
 
 const app = express();
+
+app.use(cors());
 
 app.use(express.json());
 app.use(multer().any());
